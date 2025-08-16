@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Clicker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000;
+            color: #f8fafc; /* Slate 50 */
+            overflow: hidden;
+            user-select: none;
+        }
+        .game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(170deg, #0f0c29, #302b63, #24243e, #0f172a);
+            background-size: 200% 200%;
+            animation: gradient-animation 20s ease infinite;
+            cursor: none; /* Hide the default cursor */
+        }
+        #selection-ring {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 3px solid #0ea5e9; /* Sky 500 */
+            background-color: rgba(14, 165, 233, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%); /* Center on cursor */
+            pointer-events: none; /* Allow clicks to pass through */
+            z-index: 100;
+            transition: transform 0.1s ease-out;
+        }
+        #selection-ring.active {
+            transform: translate(-50%, -50%) scale(1.2);
+            background-color: rgba(14, 165, 233, 0.2);
+        }
+        @keyframes gradient-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes move-twink-back {
+            from {background-position:0 0;}
+            to {background-position:-10000px 5000px;}
+        }
+        .twinkling {
+            position:absolute; top:0; left:0; right:0; bottom:0;
+            width:100%; height:100%; display:block;
+            background:transparent url(https://www.script-tutorials.com/demos/360/images/twinkling.png) repeat top center;
+            z-index:1; animation:move-twink-back 200s linear infinite;
+        }
+        .side-animation {
+            position: absolute; bottom: -200px; width: 80px; height: 160px;
+            z-index: 2; opacity: 0.6; filter: drop-shadow(0 0 10px rgba(150, 200, 255, 0.5));
+        }
+        .rocket-left { left: 10%; animation: fly-up 10s linear infinite 1s; }
+        .rocket-right { right: 10%; transform: scaleX(-1); animation: fly-up 12s linear infinite 4s; }
+        @keyframes fly-up {
+            0% { transform: translateY(0) scaleX(var(--scale, 1)); }
+            100% { transform: translateY(-120vh) scaleX(var(--scale, 1)); }
+        }
+        .rocket-right { --scale: -1; }
+
+        .game-object {
+            position: absolute; width: 50px; height: 50px;
+            background-size: contain; background-repeat: no-repeat;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+            will-change: transform, top, left; z-index: 10;
+        }
+        /* --- Star Glow Effects --- */
+        .glow-orange { filter: drop-shadow(0 0 8px #f97316) drop-shadow(0 0 4px #fb923c); }
+        .glow-blue { filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 4px #7dd3fc); }
+        .glow-purple { filter: drop-shadow(0 0 10px #a855f7) drop-shadow(0 0 5px #c084fc); }
+        .glow-rainbow { animation: rainbow-glow 2s linear infinite; }
+        @keyframes rainbow-glow {
+            0% { filter: drop-shadow(0 0 10px #ef4444) hue-rotate(0deg); }
+            25% { filter: drop-shadow(0 0 12px #34d399) hue-rotate(90deg); }
+            50% { filter: drop-shadow(0 0 10px #3b82f6) hue-rotate(180deg); }
+            75% { filter: drop-shadow(0 0 12px #d946ef) hue-rotate(270deg); }
+            100% { filter: drop-shadow(0 0 10px #ef4444) hue-rotate(360deg); }
+        }
+
+        .clicked { transform: scale(1.5) !important; opacity: 0; }
+        .title-font { font-family: 'Orbitron', sans-serif; }
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); display: flex;
+            justify-content: center; align-items: center; z-index: 50;
+        }
+        .modal-content {
+            background-color: #1e293b; padding: 2rem; border-radius: 0.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #334155;
+        }
+        .leaderboard-scores::-webkit-scrollbar { width: 8px; }
+        .leaderboard-scores::-webkit-scrollbar-track { background: #0f172a; }
+        .leaderboard-scores::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .leaderboard-scores::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .ui-pop { animation: pop 0.3s ease-out; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
+        .particle {
+            position: absolute; border-radius: 50%; z-index: 20;
+            animation: explode 0.5s ease-out forwards;
+        }
+        @keyframes explode { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(3); } }
+        
+        #music-toggle {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="h-screen bg-slate-900">
+
+    <main class="w-full h-full relative">
+        <div id="game-container" class="w-full h-full">
+            <div id="selection-ring"></div>
+            <div class="twinkling"></div>
+            <div class="side-animation rocket-left">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 20L11 22L13 20V16H9V20ZM11 4L13 2L15 4L17 4C17.5523 4 18 4.44772 18 5L18 9L20 11L18 13L18 17C18 17.5523 17.5523 18 17 18L15 18L13 20L11 18L9 18C8.44772 18 8 17.5523 8 17L8 13L6 11L8 9L8 5C8 4.44772 8.44772 4 9 4L11 4Z" fill="#CFD8DC"/><path d="M11 4L9 4C8.44772 4 8 4.44772 8 5V9L6 11L8 13V17C8 17.5523 8.44772 18 9 18L11 18V16L13 16V18L15 18C15.5523 18 16 17.5523 16 17V13L18 11L16 9V5C16 4.44772 15.5523 4 15 4L13 4L11 2L9 4C9.66667 4 10.3333 4 11 4Z" fill="#F44336"/><path d="M12 14C10.3431 14 9 12.6569 9 11C9 9.34315 10.3431 8 12 8C13.6569 8 15 9.34315 15 11C15 12.6569 13.6569 14 12 14Z" fill="#FFFFFF"/><path d="M11 22L13 20V16H9V20L11 22Z" fill="#FFC107"/></svg>
+            </div>
+            <div class="side-animation rocket-right">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 20L11 22L13 20V16H9V20ZM11 4L13 2L15 4L17 4C17.5523 4 18 4.44772 18 5L18 9L20 11L18 13L18 17C18 17.5523 17.5523 18 17 18L15 18L13 20L11 18L9 18C8.44772 18 8 17.5523 8 17L8 13L6 11L8 9L8 5C8 4.44772 8.44772 4 9 4L11 4Z" fill="#CFD8DC"/><path d="M11 4L9 4C8.44772 4 8 4.44772 8 5V9L6 11L8 13V17C8 17.5523 8.44772 18 9 18L11 18V16L13 16V18L15 18C15.5523 18 16 17.5523 16 17V13L18 11L16 9V5C16 4.44772 15.5523 4 15 4L13 4L11 2L9 4C9.66667 4 10.3333 4 11 4Z" fill="#F44336"/><path d="M12 14C10.3431 14 9 12.6569 9 11C9 9.34315 10.3431 8 12 8C13.6569 8 15 9.34315 15 11C15 12.6569 13.6569 14 12 14Z" fill="#FFFFFF"/><path d="M11 22L13 20V16H9V20L11 22Z" fill="#FFC107"/></svg>
+            </div>
+
+            <!-- Game UI Elements -->
+            <div class="absolute top-0 left-0 w-full p-6 z-30 flex justify-between items-center">
+                <h2 class="title-font text-2xl md:text-3xl text-yellow-300">Score: <span id="score">0</span></h2>
+                <div class="flex items-center space-x-4">
+                    <h2 class="title-font text-2xl md:text-3xl text-cyan-300">Time: <span id="timer">30</span>s</h2>
+                    <button id="music-toggle">
+                        <svg id="sound-on-icon" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                        <svg id="sound-off-icon" class="w-6 h-6 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2L17 10m2 2l2 2"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xs p-4 md:p-6 text-center z-30">
+                <button id="startButton" class="title-font bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-500/50">
+                    Start Game
+                </button>
+            </div>
+        </div>
+
+        <div class="absolute bottom-4 right-4 bg-slate-900/70 backdrop-blur-sm border-2 border-slate-700 rounded-lg p-4 w-80 max-h-96 flex flex-col z-40">
+            <h3 class="title-font text-2xl text-center mb-4 text-yellow-300 border-b-2 border-yellow-400/50 pb-2 flex-shrink-0">Leaderboard</h3>
+            <div id="leaderboard-scores" class="leaderboard-scores flex-grow overflow-y-auto"></div>
+        </div>
+    </main>
+
+    <div id="modal" class="modal-backdrop hidden">
+        <div class="modal-content text-center w-11/12 max-w-md">
+            <h2 class="title-font text-3xl mb-2">Game Over!</h2>
+            <p class="text-lg mb-4">Your final score is: <span id="finalScore" class="font-bold text-yellow-300 text-2xl">0</span></p>
+            <input type="text" id="playerName" placeholder="Enter your name" class="w-full bg-slate-700 text-white p-3 rounded-md my-4 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" maxlength="15">
+            <button id="submitScoreButton" class="w-full title-font bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-500/50">
+                Submit Score to Leaderboard
+            </button>
+        </div>
+    </div>
+    
+    <audio id="background-music" loop>
+        <source src="https://assets.mixkit.co/music/preview/mixkit-deep-thought-292.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // --- DOM ELEMENTS ---
+        const gameContainer = document.getElementById('game-container');
+        const selectionRing = document.getElementById('selection-ring');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const startButton = document.getElementById('startButton');
+        const modal = document.getElementById('modal');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const playerNameInput = document.getElementById('playerName');
+        const submitScoreButton = document.getElementById('submitScoreButton');
+        const leaderboardScores = document.getElementById('leaderboard-scores');
+        const music = document.getElementById('background-music');
+        const musicToggle = document.getElementById('music-toggle');
+        const soundOnIcon = document.getElementById('sound-on-icon');
+        const soundOffIcon = document.getElementById('sound-off-icon');
+
+        // --- GAME STATE ---
+        let score = 0;
+        let timeLeft = 30;
+        let gameInterval = null;
+        let objectInterval = null;
+        let isGameRunning = false;
+        const GAME_DURATION = 30;
+        const RING_RADIUS = 60;
+        const API_URL = 'http://localhost:5000/api/scores'; // Backend API URL
+
+        // --- ASSET & STAR TYPE DEFINITIONS ---
+        const STAR_TYPES = {
+            normal: { score: 1, speedMultiplier: 1, svg: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="yellow" width="50px" height="50px"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>', className: '' },
+            frost: { score: 3, speedMultiplier: 1.1, svg: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23a5f3fc" width="50px" height="50px"><path d="M12 2 L14.3 8.9 L21.5 9 L15.4 13.4 L17.7 20.3 L12 15.8 L6.3 20.3 L8.6 13.4 L2.5 9 L9.7 8.9 Z"/></svg>', className: 'glow-blue' },
+            glimmer: { score: 5, speedMultiplier: 1.2, svg: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23fdba74" width="50px" height="50px"><path d="M12 2l2.35 7.18h7.55l-6.1 4.44 2.35 7.18-6.1-4.44-6.1 4.44 2.35-7.18-6.1-4.44h7.55z"/></svg>', className: 'glow-orange' },
+            voidStar: { score: 7, speedMultiplier: 1.3, svg: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23c084fc" width="50px" height="50px"><path d="M12 2 L9.5 9.5 L2 12 L9.5 14.5 L12 22 L14.5 14.5 L22 12 L14.5 9.5 Z"/></svg>', className: 'glow-purple' },
+            nova: { score: 10, speedMultiplier: 1.5, svg: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="50px" height="50px"><path d="M12 2.5l1.9 5.8h6.1l-4.95 3.59 1.9 5.8-4.95-3.59-4.95 3.59 1.9-5.8-4.95-3.59h6.1z"/></svg>', className: 'glow-rainbow' }
+        };
+        const ASTEROID_SVGS = [ 'https://www.svgrepo.com/show/511451/asteroid.svg', 'https://www.svgrepo.com/show/511453/asteroid.svg' ];
+
+        // --- SOUND & MUSIC ---
+        let starSynth, asteroidSynth;
+        function setupSounds() {
+            starSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination();
+            asteroidSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 } }).toDestination();
+        }
+        async function toggleMusic() {
+            if (music.paused) {
+                try { await music.play(); soundOnIcon.classList.remove('hidden'); soundOffIcon.classList.add('hidden'); } catch (error) { console.log("Music play failed:", error); }
+            } else { music.pause(); soundOnIcon.classList.add('hidden'); soundOffIcon.classList.remove('hidden'); }
+        }
+        document.body.addEventListener('click', async () => {
+            await Tone.start();
+            if (music.paused) { try { await music.play(); soundOnIcon.classList.remove('hidden'); soundOffIcon.classList.add('hidden'); } catch (err) { console.log("User interaction occurred, but music auto-play was prevented."); } }
+        }, { once: true });
+        musicToggle.addEventListener('click', toggleMusic);
+
+        // --- LEADERBOARD & API LOGIC ---
+        async function fetchLeaderboard() {
+            leaderboardScores.innerHTML = '<p class="text-center text-slate-400">Loading...</p>';
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Backend not available');
+                const scores = await response.json();
+                displayScores(scores);
+            } catch (error) {
+                console.warn("Could not connect to the backend. Falling back to local storage.", error);
+                const localScoresHeader = document.createElement('p');
+                localScoresHeader.className = 'text-center text-amber-400 text-xs px-2 pb-2';
+                localScoresHeader.textContent = 'Showing local scores.';
+                leaderboardScores.innerHTML = ''; // Clear loading message
+                leaderboardScores.appendChild(localScoresHeader);
+                
+                try {
+                    const scoresJSON = localStorage.getItem('cosmicClickerScores');
+                    const scores = scoresJSON ? JSON.parse(scoresJSON) : [];
+                    scores.sort((a, b) => b.score - a.score);
+                    displayScores(scores.slice(0, 10), true);
+                } catch (localError) {
+                    console.error("Error with local storage:", localError);
+                    leaderboardScores.innerHTML = '<p class="text-center text-red-400">Could not load any scores.</p>';
+                }
+            }
+        }
+
+        function displayScores(scores, isLocal = false) {
+            const scoresContainer = document.createElement('div');
+            if (scores.length === 0) {
+                scoresContainer.innerHTML = '<p class="text-center text-slate-400">No scores yet. Be the first!</p>';
+            } else {
+                 scoresContainer.innerHTML = scores.map((s, index) => `
+                    <div class="flex justify-between items-center p-2 rounded-md ${index % 2 === 0 ? 'bg-slate-700/50' : ''}">
+                        <span class="font-semibold text-lg truncate pr-2">${index + 1}. ${s.name}</span>
+                        <span class="font-bold text-yellow-300 text-lg flex-shrink-0">${s.score}</span>
+                    </div>
+                `).join('');
+            }
+
+            if(isLocal) {
+                 leaderboardScores.appendChild(scoresContainer);
+            } else {
+                leaderboardScores.innerHTML = '';
+                leaderboardScores.appendChild(scoresContainer);
+            }
+        }
+        
+        async function submitScore() {
+            const playerName = playerNameInput.value.trim() || 'Anonymous';
+            const newScore = { name: playerName, score: score, timestamp: new Date() };
+            submitScoreButton.disabled = true;
+            submitScoreButton.textContent = 'Submitting...';
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newScore),
+                });
+                if (!response.ok) throw new Error('Backend not available');
+            } catch (error) {
+                console.warn("Could not submit to backend. Saving score locally.");
+                const scoresJSON = localStorage.getItem('cosmicClickerScores');
+                let scores = scoresJSON ? JSON.parse(scoresJSON) : [];
+                scores.push(newScore);
+                localStorage.setItem('cosmicClickerScores', JSON.stringify(scores));
+            } finally {
+                modal.classList.add('hidden');
+                playerNameInput.value = '';
+                await fetchLeaderboard();
+                submitScoreButton.disabled = false;
+                submitScoreButton.textContent = 'Submit Score to Leaderboard';
+            }
+        }
+
+        // --- GAME LOGIC ---
+        function createClickEffect(x, y, color) { /* ... unchanged ... */ }
+
+        function spawnObject() {
+            const isStar = Math.random() < (2/3);
+            const object = document.createElement('div');
+            object.classList.add('game-object');
+            
+            const playAreaMargin = 0.1; 
+            const leftBoundary = gameContainer.clientWidth * playAreaMargin;
+            const rightBoundary = gameContainer.clientWidth * (1 - playAreaMargin);
+            const spawnableWidth = rightBoundary - leftBoundary;
+            object.style.left = `${Math.random() * (spawnableWidth - 50) + leftBoundary}px`;
+            object.style.top = '-50px';
+
+            let speedMultiplier = 1;
+
+            if (isStar) {
+                const rand = Math.random();
+                let starType;
+                if (rand < 0.05) { starType = STAR_TYPES.nova; } 
+                else if (rand < 0.15) { starType = STAR_TYPES.voidStar; } 
+                else if (rand < 0.35) { starType = STAR_TYPES.glimmer; } 
+                else if (rand < 0.60) { starType = STAR_TYPES.frost; } 
+                else { starType = STAR_TYPES.normal; }
+                
+                object.style.backgroundImage = `url('${starType.svg}')`;
+                if(starType.className) object.classList.add(starType.className);
+                object.dataset.score = starType.score;
+                speedMultiplier = starType.speedMultiplier;
+
+            } else {
+                object.style.backgroundImage = `url('${ASTEROID_SVGS[Math.floor(Math.random() * ASTEROID_SVGS.length)]}')`;
+                object.dataset.score = -1;
+            }
+            
+            gameContainer.appendChild(object);
+
+            const fallDuration = (Math.random() * 2000 + 3000) / speedMultiplier;
+            const horizontalDrift = (Math.random() - 0.5) * 200;
+            const rotation = (Math.random() - 0.5) * 720;
+
+            object.animate([
+                { top: '-50px', transform: 'translateX(0px) rotate(0deg)' },
+                { top: `${gameContainer.clientHeight}px`, transform: `translateX(${horizontalDrift}px) rotate(${rotation}deg)` }
+            ], { duration: fallDuration, easing: 'linear' });
+
+            setTimeout(() => { if (object.parentElement) object.remove(); }, fallDuration);
+        }
+
+        function startGame() {
+            if (!starSynth) setupSounds();
+            isGameRunning = true;
+            score = 0;
+            timeLeft = GAME_DURATION;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timeLeft;
+            startButton.disabled = true;
+            startButton.textContent = '...';
+            
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                timerDisplay.parentElement.classList.add('ui-pop');
+                setTimeout(() => timerDisplay.parentElement.classList.remove('ui-pop'), 300);
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+
+            objectInterval = setInterval(spawnObject, 450);
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            clearInterval(gameInterval);
+            clearInterval(objectInterval);
+            document.querySelectorAll('.game-object').forEach(obj => obj.remove());
+            finalScoreDisplay.textContent = score;
+            modal.classList.remove('hidden');
+            startButton.disabled = false;
+            startButton.textContent = 'Start Game';
+        }
+
+        // --- MOUSE & CLICK HANDLING ---
+        gameContainer.addEventListener('mousemove', (e) => {
+            selectionRing.style.left = `${e.clientX}px`;
+            selectionRing.style.top = `${e.clientY}px`;
+        });
+
+        gameContainer.addEventListener('mousedown', () => {
+             if (isGameRunning) selectionRing.classList.add('active');
+        });
+
+        gameContainer.addEventListener('mouseup', (e) => {
+            if (!isGameRunning) return;
+            
+            selectionRing.classList.remove('active');
+            const ringRect = selectionRing.getBoundingClientRect();
+            const ringCenterX = ringRect.left + RING_RADIUS;
+            const ringCenterY = ringRect.top + RING_RADIUS;
+
+            document.querySelectorAll('.game-object:not(.clicked)').forEach(obj => {
+                const objRect = obj.getBoundingClientRect();
+                const objCenterX = objRect.left + objRect.width / 2;
+                const objCenterY = objRect.top + objRect.height / 2;
+                const distance = Math.sqrt(Math.pow(ringCenterX - objCenterX, 2) + Math.pow(ringCenterY - objCenterY, 2));
+                
+                if (distance < RING_RADIUS + objRect.width / 2) {
+                    const points = parseInt(obj.dataset.score, 10);
+                    score += points;
+                    score = Math.max(0, score);
+
+                    if (points > 0) {
+                        starSynth.triggerAttackRelease("C5", "8n");
+                        createClickEffect(objCenterX, objCenterY, 'yellow');
+                    } else {
+                        asteroidSynth.triggerAttackRelease("C3", "8n");
+                        createClickEffect(objCenterX, objCenterY, 'grey');
+                    }
+                    
+                    obj.classList.add('clicked');
+                    setTimeout(() => obj.remove(), 200);
+                }
+            });
+
+            scoreDisplay.textContent = score;
+        });
+
+        // --- EVENT LISTENERS ---
+        startButton.addEventListener('click', startGame);
+        submitScoreButton.addEventListener('click', submitScore);
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', fetchLeaderboard);
+    </script>
+</body>
+</html>
