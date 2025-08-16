@@ -37,7 +37,7 @@ Create `.env`:
 
 ```env
 MONGO_URI=mongodb://localhost:27017/cosmic_clicker
-PORT=3000
+PORT=5000
 ```
 
 Run server:
