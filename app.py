@@ -53,7 +53,7 @@ def add_score():
 
 @app.route('/', methods=['GET'])
 def home():
-    return {"message": "Flask + MongoDB API is running 🚀"}, 200
+    return {"message": "Flask + MongoDB API is running successfully"}, 200
 
 if __name__ == '__main__':
     PORT = int(os.getenv("PORT", 5000))
