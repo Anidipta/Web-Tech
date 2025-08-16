@@ -14,7 +14,7 @@ CORS(app)
 # MongoDB connection
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
-db = client["mydatabase"]   # change to your db name
+db = client["circle-game"]   # change to your db name
 scores_collection = db["scores"]
 
 # GET: fetch top 10 scores
@@ -50,6 +50,10 @@ def add_score():
         return jsonify(new_score), 201
     except Exception as e:
         return jsonify({"message": "Error saving score", "error": str(e)}), 500
+
+@app.route('/', methods=['GET'])
+def home():
+    return {"message": "Flask + MongoDB API is running 🚀"}, 200
 
 if __name__ == '__main__':
     PORT = int(os.getenv("PORT", 5000))
